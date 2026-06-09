@@ -25,6 +25,10 @@ MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 _autofill_lock = threading.Lock()
 _autofill_staged: dict | None = None
 
+# Most recent capture grabbed FROM an external form (reverse direction);
+# the Protocol Engine UI polls this and fills its case bar from it.
+_autofill_inbound: dict | None = None
+
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -210,6 +214,27 @@ def get_staged_autofill() -> dict | None:
         return _autofill_staged
 
 
+def stage_inbound(payload: dict) -> dict:
+    global _autofill_inbound
+    if not isinstance(payload, dict) or not isinstance(payload.get("fields"), dict):
+        raise ValueError("Inbound capture must include a fields object.")
+    record = {
+        "fields": {k: v.strip() for k, v in payload["fields"].items() if isinstance(v, str) and v.strip()},
+        "source": str(payload.get("source") or ""),
+        "captured_at": now_iso(),
+    }
+    if not record["fields"]:
+        raise ValueError("Inbound capture contained no non-empty fields.")
+    with _autofill_lock:
+        _autofill_inbound = record
+    return record
+
+
+def get_inbound() -> dict | None:
+    with _autofill_lock:
+        return _autofill_inbound
+
+
 # ---------------------------------------------------------------------------
 # HTTP handler
 # ---------------------------------------------------------------------------
@@ -272,6 +297,10 @@ class ProtocolHandler(BaseHTTPRequestHandler):
             self.send_json({"maps": load_field_maps()})
             return
 
+        if path == "/api/autofill/inbound":
+            self.send_json({"ok": True, "inbound": get_inbound()})
+            return
+
         if path in {"/", "/index.html"}:
             self.send_static(STATIC_DIR / "index.html")
             return
@@ -296,6 +325,10 @@ class ProtocolHandler(BaseHTTPRequestHandler):
 
         if path == "/api/autofill":
             self.handle_json_write(self._stage_autofill)
+            return
+
+        if path == "/api/autofill/inbound":
+            self.handle_json_write(self._stage_inbound)
             return
 
         if path == "/api/autofill/maps":
@@ -367,6 +400,10 @@ class ProtocolHandler(BaseHTTPRequestHandler):
     def _stage_autofill(self, payload: dict) -> None:
         stage_autofill(payload)
         self.send_json({"ok": True, "staged_at": now_iso()})
+
+    def _stage_inbound(self, payload: dict) -> None:
+        record = stage_inbound(payload)
+        self.send_json({"ok": True, "captured_at": record["captured_at"], "field_count": len(record["fields"])}, HTTPStatus.CREATED)
 
     def _save_field_map(self, payload: dict) -> None:
         fm = save_field_map(payload)

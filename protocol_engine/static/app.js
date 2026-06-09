@@ -695,20 +695,91 @@ function generateBookmarklet() {
       .catch(function(e){alert('Autofill error: '+e.message+'. Make sure the Protocol Engine server is running at http://127.0.0.1:8787');});
   })();`;
 
-  const minified = code.replace(/\s+/g, " ").trim();
-  const href = `javascript:${encodeURIComponent(minified)}`;
+  // Reverse direction: reads the form on the target page using the same
+  // field map selectors and posts the values back to the engine.
+  const grabCode = `(function(){
+    fetch('http://127.0.0.1:8787/api/autofill/maps')
+      .then(function(r){return r.json()})
+      .then(function(d){
+        var maps=d.maps||[],bestMap=null;
+        for(var i=0;i<maps.length;i++){
+          var pat=maps[i].url_pattern||'';
+          if(pat&&new RegExp(pat.replace(/\\*/g,'.*'),'i').test(location.href)){bestMap=maps[i];break;}
+        }
+        if(!bestMap&&maps.length)bestMap=maps[0];
+        if(!bestMap){alert('No field map configured in the Protocol Engine.');return;}
+        var m=bestMap.mappings||{},fields={},found=0;
+        Object.keys(m).forEach(function(field){
+          var sel=m[field];if(!sel){return;}
+          var els=document.querySelectorAll(sel),el=null;
+          for(var j=0;j<els.length;j++){if(els[j].offsetParent!==null){el=els[j];break;}}
+          if(!el&&els.length){el=els[0];}
+          if(el&&el.value&&el.value.trim()){fields[field]=el.value.trim();found++;}
+        });
+        if(!found){alert('No filled mapped fields found on this page to grab.');return;}
+        return fetch('http://127.0.0.1:8787/api/autofill/inbound',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:location.hostname,fields:fields})})
+          .then(function(){alert('Sent '+found+' field'+(found===1?'':'s')+' to the Protocol Engine.');});
+      })
+      .catch(function(e){alert('Grab error: '+e.message+'. Make sure the Protocol Engine server is running at http://127.0.0.1:8787');});
+  })();`;
 
   const container = el("bookmarkletContainer");
+  container.appendChild(makeBookmarkletLink("Autofill from Protocol Engine", code, "Fills the open form from the staged case"));
+  container.appendChild(makeBookmarkletLink("Grab into Protocol Engine", grabCode, "Reads the open form and sends it to the engine's case bar"));
+}
+
+function makeBookmarkletLink(label, code, title) {
+  const minified = code.replace(/\s+/g, " ").trim();
   const link = document.createElement("a");
   link.className = "bookmarklet-link";
-  link.href = href;
-  link.textContent = "Autofill from Protocol Engine";
-  link.title = "Drag this to your bookmarks bar";
+  link.href = `javascript:${encodeURIComponent(minified)}`;
+  link.textContent = label;
+  link.title = `${title}. Drag this to your bookmarks bar.`;
   link.addEventListener("click", (event) => {
     event.preventDefault();
     showToast("Drag this link to your bookmarks bar — don't click it here.", "ok");
   });
-  container.appendChild(link);
+  return link;
+}
+
+/* -- inbound pull (Grab bookmarklet -> case bar) --------------------- */
+
+let lastInboundAt = null;
+
+async function pollInbound() {
+  if (document.hidden) return;
+  try {
+    const data = await api("/api/autofill/inbound");
+    const record = data.inbound;
+    if (!record || !record.captured_at || record.captured_at === lastInboundAt) return;
+    lastInboundAt = record.captured_at;
+    applyInbound(record);
+  } catch {
+    // Server unreachable; the health badge already reflects that.
+  }
+}
+
+function applyInbound(record) {
+  let applied = 0;
+  let kept = 0;
+  Object.entries(record.fields || {}).forEach(([field, value]) => {
+    const node = document.querySelector(`[data-field="${CSS.escape(field)}"]`);
+    if (!node) return;
+    // Never clobber something the coordinator already typed.
+    if (node.value && node.value.trim() && node.value.trim() !== value) {
+      kept++;
+      return;
+    }
+    node.value = value;
+    state.caseFields[field] = value;
+    applied++;
+  });
+  if (applied) {
+    ensureCaseStarted();
+    const source = record.source || "browser form";
+    logEvent(`Pulled ${applied} field${applied === 1 ? "" : "s"} from ${source}`);
+    showToast(`Pulled ${applied} field${applied === 1 ? "" : "s"} from ${source}${kept ? ` (${kept} kept as typed)` : ""}.`, "ok");
+  }
 }
 
 /* -- field map management ------------------------------------------- */
@@ -903,6 +974,21 @@ async function uploadPathway() {
 /* -- boot ----------------------------------------------------------- */
 
 function boot() {
+  // Companion mode: a slim checklist/timer/contacts strip meant to sit in a
+  // narrow window beside the EHR. Same app, reduced chrome via CSS.
+  const isCompanion = new URLSearchParams(window.location.search).has("companion");
+  if (isCompanion) document.body.classList.add("companion");
+  const companionButton = el("companionButton");
+  if (companionButton) {
+    if (isCompanion) {
+      companionButton.hidden = true;
+    } else {
+      companionButton.addEventListener("click", () => {
+        window.open("/?companion=1", "pe_companion", "width=440,height=900,resizable=yes,scrollbars=yes");
+      });
+    }
+  }
+
   el("uploadButton").addEventListener("click", uploadPathway);
   pathwaySelect.addEventListener("change", () => {
     const value = pathwaySelect.value;
@@ -924,6 +1010,9 @@ function boot() {
   api("/api/health")
     .then(() => setStatus("online", "Backend online"))
     .catch(() => setStatus("offline", "Backend offline"));
+
+  pollInbound();
+  window.setInterval(pollInbound, 3000);
 
   loadLibrary().catch((error) => {
     setStatus("offline", "Backend error");

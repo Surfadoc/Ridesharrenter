@@ -17,6 +17,7 @@
         </div>
       </div>
       <div class="topbar-right">
+        <button id="companionButton" type="button" title="Open a slim checklist window to sit beside the EHR">Companion Window</button>
         <span class="status" id="status"><span class="dot"></span><span id="statusText">Connecting…</span></span>
       </div>
     </div>
@@ -24,7 +25,7 @@
 
   <main>
     <aside class="sidebar">
-      <section class="panel">
+      <section class="panel" id="libraryPanel">
         <div class="panel-section stack">
           <div>
             <h2>Pathway Library</h2>
@@ -45,7 +46,7 @@
         <div class="panel-section" id="contactsList"></div>
       </section>
 
-      <section class="panel">
+      <section class="panel" id="safetyPanel">
         <div class="panel-section safety-note">
           Workflow prototype. Clinical and operational content must be reviewed, approved, versioned, and governed by the appropriate medical, operational, legal, and compliance stakeholders before live use.
         </div>
@@ -118,7 +119,7 @@
             <button class="copy-field" type="button" data-copy="diagnosis" title="Copy">&#x2398;</button>
           </div>
         </div>
-        <div class="panel-section button-row">
+        <div class="panel-section button-row" id="caseActions">
           <button id="copyAllButton" type="button">Copy All Fields</button>
           <button class="primary" id="stageAutofillButton" type="button">Stage for Autofill</button>
           <span class="autofill-status not-staged" id="autofillStatus">Not staged</span>
@@ -135,9 +136,9 @@
           <div class="collapsible-body" id="autofillBody">
             <div style="margin-top:12px">
               <h3>Bookmarklet</h3>
-              <div class="subtle">Drag this link to your bookmarks bar. On the target form, click it to autofill from the staged case.</div>
-              <div id="bookmarkletContainer" style="margin:10px 0"></div>
-              <div class="subtle">The bookmarklet fetches <code>http://127.0.0.1:8787/api/autofill</code> and applies your field mappings.</div>
+              <div class="subtle">Drag both links to your bookmarks bar. <strong>Autofill</strong> fills the target form from the staged case; <strong>Grab</strong> reads the target form (e.g. an open Cerner case) and pulls it into the case bar here — so you never re-type what the EHR already has.</div>
+              <div id="bookmarkletContainer" style="display:flex;flex-wrap:wrap;gap:10px;margin:10px 0"></div>
+              <div class="subtle">Both use your field mappings and talk only to <code>http://127.0.0.1:8787</code> on this machine.</div>
             </div>
             <div style="margin-top:16px">
               <h3>Field Mappings</h3>
@@ -222,7 +223,7 @@ Send caseData["callback"] "{Tab}"
         <article class="panel empty">Select a protocol set, then choose a pathway. It opens automatically into the active call.</article>
       </section>
 
-      <article class="panel">
+      <article class="panel" id="timelinePanel">
         <div class="section-label">Case Timeline / Audit</div>
         <div class="panel-section">
           <div class="timeline" id="timeline">

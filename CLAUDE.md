@@ -22,12 +22,14 @@ cd protocol_engine && python server.py
 - `GET|POST /api/pathways`, `GET|DELETE /api/pathways/{id}`
 - `GET|POST /api/cases`, `GET /api/cases/{id}`
 - `GET|POST /api/autofill` — stage/retrieve case data for bookmarklet autofill (CORS-enabled)
+- `GET|POST /api/autofill/inbound` — reverse direction: "Grab" bookmarklet posts values read from an external form; the engine UI polls this every 3s and fills empty case-bar fields (never overwrites typed values)
 - `GET|POST /api/autofill/maps`, `DELETE /api/autofill/maps/{id}` — field map CRUD
 
 ## Pathway JSON Schema
 Requires `title`, `entry` (prompt + options where each `next` references a real pathway), and a non-empty `pathways` object. Each pathway: `title` (required), optional `steps`, `decision_points`, `destination_guidance`, `page_format`, `trigger`, `escalation_minutes`. Set-level `contacts` is optional.
 
 ## Key Behaviors
+- Companion mode (`/?companion=1`, opened via the "Companion Window" topbar button) is a slim checklist/timer/contacts strip for sitting beside the EHR; CSS class `companion` on `<body>` hides library/case bar/timeline/autofill panels. Cerner is the system of record — the engine owns guidance, timing, and the protocol audit trail, not data entry.
 - Selecting a triage option OR picking from the pathway dropdown opens the pathway automatically (no separate open button).
 - Step completion is timestamped; per-step notes and decision answers feed the audit trail.
 - Per-protocol timers escalate (amber at half `escalation_minutes`, red at the threshold; default 10 min).

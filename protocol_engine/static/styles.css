@@ -442,6 +442,31 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   padding: 10px 12px;
 }
 
+/* Companion mode — slim checklist/timer/contacts strip beside the EHR */
+body.companion header { padding: 8px 12px; }
+body.companion .brand .logo,
+body.companion .brand .subtle { display: none; }
+body.companion h1 { font-size: 16px; }
+body.companion main {
+  gap: 12px;
+  grid-template-columns: 1fr;
+  max-width: none;
+  padding: 12px;
+}
+body.companion .sidebar { order: 2; }
+body.companion #libraryPanel,
+body.companion #safetyPanel,
+body.companion #timelinePanel,
+body.companion #autofillPanel,
+body.companion #caseBar,
+body.companion #caseActions { display: none; }
+body.companion .workspace-head { padding: 10px 12px; }
+body.companion .workspace-head h2 { font-size: 15px; }
+body.companion .workspace-head .subtle { display: none; }
+body.companion .active-protocols,
+body.companion .triage-options { grid-template-columns: 1fr; }
+body.companion .triage-option { padding: 10px 12px; }
+
 @media (max-width: 1100px) {
   main, .active-protocols, .case-bar, .triage-options, .info-grid { grid-template-columns: 1fr; }
   .case-bar .wide { grid-column: auto; }

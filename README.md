@@ -4,10 +4,19 @@ A portable prototype for a hospital transfer-center protocol system.
 
 It moves beyond a static decision tree toward an electronic protocol engine for urgent and non-urgent calls, with uploaded pathways, active-call workspaces, timers, and parallel task tracking.
 
+## Features
+
+- **Guided triage** — selecting a protocol set shows its entry question; choosing an option opens the matching pathway automatically.
+- **Concurrent pathways** — run several pathways on one call, each with its own escalating timer (amber → red).
+- **Timestamped checklists** — every checked step records the time; add per-step notes.
+- **Interactive decision points**, destination guidance, key contacts, and copy-ready page formats.
+- **Audit trail** — a live case timeline of every action.
+- **Save / Export / Print** — persist a case snapshot server-side, download it as JSON, or print a summary.
+
 ## Included
 
 - `protocol_engine/server.py` — Local backend API using Python standard library only (no external dependencies).
-- `protocol_engine/static/index.html` — Browser UI for protocol library, upload, active calls, timers, and checklists.
+- `protocol_engine/static/` — Browser UI (`index.html`, `styles.css`, `app.js`); no build step.
 - `protocol_engine/data/pathways/` — Stored pathway JSON files including the seed MWHC cardiac pathway.
 - `protocol_engine/ROADMAP.md` — Product roadmap for the protocol system.
 - `mwhc-cardiac-pathway-protocol.json` — Reference copy of the MWHC cardiac pathway protocol.

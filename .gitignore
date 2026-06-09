@@ -9,3 +9,7 @@ dist/
 build/
 .DS_Store
 Thumbs.db
+
+# Saved cases may contain PHI — keep the directory, ignore its contents
+protocol_engine/data/cases/*
+!protocol_engine/data/cases/.gitkeep

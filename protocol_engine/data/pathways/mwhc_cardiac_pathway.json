@@ -1,0 +1,236 @@
+{
+  "id": "mwhc_cardiac_pathway",
+  "title": "MWHC Cardiac Pathway",
+  "source_file": "C:\\Users\\mic107\\Downloads\\Cardiac Pathway - MWHC (STEMI, QUICK CATH, NSTEMI).pdf",
+  "use_note": "Structured transcription of the supplied operational protocol. Requires clinical, operational, and legal review before live use.",
+  "contacts": {
+    "cath_lab": "202-877-5052",
+    "cath_lab_rn_confirmation": "202-841-7336",
+    "mwhc_stat_line": "202-877-6200",
+    "cvicu_mhvi_triage_attending": "771-214-6281",
+    "general_cardiology_attending_7am_9pm": "202-495-1156",
+    "general_cardiology_attending_9pm_7am_pager": "202-801-4870"
+  },
+  "entry": {
+    "id": "request_type",
+    "prompt": "What type of cardiac pathway request is this?",
+    "type": "single_choice",
+    "options": [
+      {
+        "label": "Transfer request for STEMI/cardiac emergency",
+        "next": "stemi_transfer"
+      },
+      {
+        "label": "Transfer request for Quick Cath designated by Interventional Cardiologist",
+        "next": "quick_cath_transfer"
+      },
+      {
+        "label": "Call from MWHC physician for STEMI/emergent condition",
+        "next": "stemi_in_house"
+      },
+      {
+        "label": "Call from MWHC physician for Quick Cath",
+        "next": "quick_cath_in_house"
+      },
+      {
+        "label": "NSTEMI transfer request",
+        "next": "nstemi_transfer"
+      },
+      {
+        "label": "Cancellation of Code Heart or Quick Cath",
+        "next": "cancellation"
+      },
+      {
+        "label": "Other cardiac/interventional call",
+        "next": "other_call"
+      }
+    ]
+  },
+  "pathways": {
+    "stemi_transfer": {
+      "title": "STEMI Transfer",
+      "trigger": "Transfer request for STEMI or cardiac emergency.",
+      "steps": [
+        "Arrange emergent transportation via MedSTAR Transport Request Teams chat.",
+        "Contact Interventional Cardiologist via AMiON.",
+        "Obtain sending physician name and callback number.",
+        "Obtain patient name and DOB.",
+        "Open new case in CATC if transfer request order was not placed.",
+        "Connect sending physician with Interventional Cardiologist.",
+        "Sending physician texts a copy of the 12-lead EKG to the Interventional Cardiologist.",
+        "Confirm STEMI or emergent condition.",
+        "Notify CODE HEART Team via SPOK: WHC - Leader - CODE HEART.",
+        "Confirm receipt of message with Cath Lab RN.",
+        "Call MWHC STAT LINE to overhead page CODE HEART, ETA, and mode of transport.",
+        "Send 5-minute warning page to all team members.",
+        "Request facesheet from sending hospital.",
+        "Complete registration via MTC PFS team.",
+        "Complete SharePoint document, noting all times.",
+        "Confirm arrival and complete CATC chart."
+      ],
+      "page_format": [
+        "CODE HEART",
+        "Last Name, First Name",
+        "ETA/transport mode",
+        "Interventional Cardiologist"
+      ]
+    },
+    "quick_cath_transfer": {
+      "title": "Quick Cath Transfer",
+      "trigger": "Transfer request for Quick Cath as designated by the Interventional Cardiologist.",
+      "steps": [
+        "Arrange emergent transportation via MedSTAR Transport Request Teams chat.",
+        "Contact Interventional Cardiologist via AMiON.",
+        "Obtain sending physician name and callback number.",
+        "Obtain patient name and DOB.",
+        "Open new case in CATC if transfer request order was not placed.",
+        "Connect sending physician with Interventional Cardiologist.",
+        "If requested, sending physician texts a copy of the 12-lead EKG to the Interventional Cardiologist.",
+        "Notify CODE HEART Team via SPOK: WHC - Leader - CODE HEART.",
+        "Confirm receipt of message with Cath Lab RN.",
+        "Send 5-minute warning page to all team members.",
+        "Request facesheet from sending hospital.",
+        "Complete registration via MTC PFS team.",
+        "Complete SharePoint document, noting all times.",
+        "Confirm arrival and complete CATC chart."
+      ],
+      "page_format": [
+        "QUICK CATH",
+        "Last Name, First Name",
+        "ETA/transport mode",
+        "Interventional Cardiologist"
+      ]
+    },
+    "stemi_in_house": {
+      "title": "STEMI In House",
+      "trigger": "Call from MWHC physician for STEMI or emergent condition.",
+      "steps": [
+        "Contact Interventional Cardiologist via AMiON.",
+        "Obtain physician name and callback number.",
+        "Obtain patient name and location.",
+        "Open new document in SharePoint.",
+        "Connect in-house physician with Interventional Cardiologist.",
+        "Sending physician texts a copy of the 12-lead EKG to the Interventional Cardiologist.",
+        "Confirm STEMI or emergent condition.",
+        "Notify CODE HEART Team via SPOK: WHC - Leader - CODE HEART.",
+        "Confirm receipt of message with Cath Lab RN.",
+        "Call MWHC STAT LINE to overhead page CODE HEART, ETA, and patient location."
+      ],
+      "page_format": [
+        "CODE HEART",
+        "Last Name, First Name",
+        "DOB",
+        "Unit/Room",
+        "Interventional Cardiologist"
+      ]
+    },
+    "quick_cath_in_house": {
+      "title": "Quick Cath In House",
+      "trigger": "Call from MWHC physician for Quick Cath.",
+      "steps": [
+        "Connect in-house physician with Interventional Cardiologist if not already done.",
+        "Sending physician texts a copy of the 12-lead EKG to the Interventional Cardiologist.",
+        "Notify CODE HEART Team via SPOK: WHC - Leader - CODE HEART.",
+        "Confirm receipt of message with Cath Lab RN."
+      ],
+      "page_format": [
+        "QUICK CATH",
+        "Last Name, First Name",
+        "ETA/transport mode",
+        "Interventional Cardiologist"
+      ]
+    },
+    "cancellation": {
+      "title": "Cancellation Of Code Heart Or Quick Cath",
+      "trigger": "Sending or accepting physician cancels Code Heart or Quick Cath.",
+      "steps": [
+        "Send page to Code Heart Group in SPOK.",
+        "Search Leader in directory.",
+        "Include cancellation type and patient name."
+      ],
+      "page_format": [
+        "Cancelled Code Heart or Quick Cath",
+        "Last Name, First Name"
+      ]
+    },
+    "nstemi_transfer": {
+      "title": "NSTEMI Transfer",
+      "trigger": "NSTEMI transfer request.",
+      "decision_points": [
+        {
+          "id": "request_from_accepting_medstar_ic_or_cardiology_group",
+          "question": "Is the request from an accepting MedStar Interventional Cardiologist or Cardiology group?",
+          "yes": [
+            "Follow the direction of the calling provider.",
+            "Destination may be Cath Lab or direct to a bed."
+          ],
+          "no": [
+            "Contact on-call Interventional Cardiologist via AMiON.",
+            "Follow provider directions.",
+            "If IC indicates NSTEMI, request transport to MWHC with destination pending.",
+            "Contact Bed Management for bed assignment: MHVI floor, 1F, or Cath Lab holding.",
+            "Once confirmed, send patient name, ETA, and bed assignment to accepting IC via Teams.",
+            "If there are delays, directly contact IC to determine how to proceed."
+          ]
+        }
+      ],
+      "destination_guidance": {
+        "cvicu_mhvi_triage": {
+          "call": "771-214-6281",
+          "criteria": [
+            "Intubated",
+            "Acute BiPAP",
+            "Hemodynamic instability due to cardiac etiology, including shock or hypotension",
+            "Vasoactive drips actively titrated",
+            "Hypotension",
+            "Clinically unstable"
+          ],
+          "notes": [
+            "Stable patient on fixed-dose drips may go to cardiac IMC.",
+            "MCVICU attending may direct patient to cardiac IMC."
+          ]
+        },
+        "floor_general_cardiology": {
+          "call_7am_9pm": "202-495-1156",
+          "pager_9pm_7am": "202-801-4870",
+          "examples": [
+            "Non-STEMI with TNI under 2",
+            "Unstable angina",
+            "New onset heart failure",
+            "Endocarditis",
+            "Valvular heart disease"
+          ]
+        }
+      }
+    },
+    "other_call": {
+      "title": "Other Cardiac Or Interventional Call",
+      "steps": [
+        "Contact the on-call Interventional Cardiologist via AMiON.",
+        "Follow directions of the provider."
+      ]
+    }
+  },
+  "capture_fields": [
+    "request_type",
+    "transfer_or_in_house",
+    "calling_provider_name",
+    "calling_provider_callback_number",
+    "patient_name",
+    "patient_dob",
+    "patient_location",
+    "eta",
+    "transport_mode",
+    "interventional_cardiologist",
+    "ekg_sent_status",
+    "code_heart_or_quick_cath_notification_time",
+    "cath_lab_rn_confirmation_time",
+    "stat_line_call_time",
+    "five_minute_warning_page_time",
+    "facesheet_requested_status",
+    "registration_completed_status",
+    "sharepoint_document_completed_status",
+    "catc_chart_completed_status",
+    "arrival_confirmed_status"
+  ]
+}

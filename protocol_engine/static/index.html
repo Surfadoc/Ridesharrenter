@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Transfer Center Protocol Engine</title>
+  <style>
+    :root {
+      --ink: #17202a;
+      --muted: #52606d;
+      --line: #d8dee5;
+      --surface: #ffffff;
+      --soft: #f4f7f9;
+      --accent: #176b87;
+      --danger: #b42318;
+      --ok: #177245;
+      --warn: #a15c00;
+      --shadow: 0 12px 30px rgba(23, 32, 42, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--soft);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      margin: 0;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      padding: 16px 22px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .topbar {
+      align-items: center;
+      display: flex;
+      gap: 16px;
+      justify-content: space-between;
+      margin: 0 auto;
+      max-width: 1320px;
+    }
+
+    h1, h2, h3 {
+      line-height: 1.15;
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 22px;
+    }
+
+    h2 {
+      font-size: 20px;
+    }
+
+    h3 {
+      font-size: 16px;
+    }
+
+    .subtle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 5px;
+    }
+
+    .status {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 8px 12px;
+      white-space: nowrap;
+    }
+
+    main {
+      display: grid;
+      gap: 18px;
+      grid-template-columns: 340px minmax(0, 1fr);
+      margin: 0 auto;
+      max-width: 1320px;
+      padding: 20px;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .panel-section {
+      border-bottom: 1px solid var(--line);
+      padding: 15px;
+    }
+
+    .panel-section:last-child {
+      border-bottom: 0;
+    }
+
+    .stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    label {
+      color: var(--muted);
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      margin-bottom: 7px;
+      text-transform: uppercase;
+    }
+
+    input, select {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--ink);
+      font: inherit;
+      padding: 10px 12px;
+      width: 100%;
+    }
+
+    button {
+      align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--ink);
+      cursor: pointer;
+      display: inline-flex;
+      font: inherit;
+      font-weight: 700;
+      justify-content: center;
+      min-height: 40px;
+      padding: 9px 12px;
+    }
+
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+    }
+
+    button.danger {
+      color: var(--danger);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    button:focus, input:focus, select:focus {
+      outline: 3px solid rgba(23, 107, 135, 0.2);
+      outline-offset: 1px;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .library-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .library-item {
+      background: #fbfcfd;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      cursor: pointer;
+      padding: 12px;
+      text-align: left;
+    }
+
+    .library-item.active {
+      border-color: var(--accent);
+      box-shadow: inset 4px 0 0 var(--accent);
+    }
+
+    .workspace {
+      display: grid;
+      gap: 18px;
+    }
+
+    .case-bar {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .pathway-toolbar {
+      align-items: end;
+      display: grid;
+      gap: 12px;
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .active-protocols {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .protocol-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .protocol-header {
+      align-items: start;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      gap: 10px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      padding: 15px;
+    }
+
+    .timer {
+      background: #eef8f2;
+      border: 1px solid #b7dec5;
+      border-radius: 999px;
+      color: #155f3a;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 8px 10px;
+      white-space: nowrap;
+    }
+
+    .step-list {
+      display: grid;
+    }
+
+    .step {
+      align-items: start;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      gap: 12px;
+      grid-template-columns: auto minmax(0, 1fr);
+      padding: 12px 15px;
+    }
+
+    .step:last-child {
+      border-bottom: 0;
+    }
+
+    .step input {
+      height: 26px;
+      margin: 1px 0 0;
+      width: 26px;
+    }
+
+    .step.done {
+      background: #eef8f2;
+    }
+
+    .step.done .step-text {
+      color: #155f3a;
+      font-weight: 700;
+    }
+
+    .page-format {
+      background: #2b3038;
+      border-radius: 8px;
+      color: #f8fafc;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      margin: 14px;
+      padding: 14px;
+      white-space: pre-wrap;
+    }
+
+    .decision-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      padding: 14px;
+    }
+
+    .info-box {
+      background: #fbfcfd;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .info-box ul {
+      margin: 8px 0 0;
+      padding-left: 20px;
+    }
+
+    .empty {
+      color: var(--muted);
+      padding: 18px;
+    }
+
+    .toast {
+      background: #fff8eb;
+      border: 1px solid #efd39b;
+      border-radius: 8px;
+      color: #5f3700;
+      display: none;
+      padding: 12px;
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @media (max-width: 1050px) {
+      main,
+      .active-protocols,
+      .case-bar {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <div>
+        <h1>Transfer Center Protocol Engine</h1>
+        <div class="subtle">Local prototype for uploading pathways and running urgent or non-urgent workflows.</div>
+      </div>
+      <div class="status" id="status">Starting</div>
+    </div>
+  </header>
+
+  <main>
+    <aside class="panel">
+      <div class="panel-section stack">
+        <div>
+          <h2>Pathway Library</h2>
+          <div class="subtle">Upload structured JSON pathways and open them into a case.</div>
+        </div>
+        <input id="uploadInput" type="file" accept="application/json,.json">
+        <button class="primary" id="uploadButton" type="button">Upload Pathway</button>
+        <div class="toast" id="toast"></div>
+      </div>
+
+      <div class="panel-section">
+        <label>Available Protocol Sets</label>
+        <div class="library-list" id="libraryList"></div>
+      </div>
+    </aside>
+
+    <section class="workspace">
+      <article class="panel">
+        <div class="panel-section">
+          <h2>Active Call</h2>
+          <div class="subtle">This area models the transfer center call/case workspace.</div>
+        </div>
+        <div class="panel-section case-bar">
+          <div>
+            <label for="caseId">Case ID</label>
+            <input id="caseId" placeholder="Auto / CATC / transfer ID">
+          </div>
+          <div>
+            <label for="caller">Calling Provider</label>
+            <input id="caller" placeholder="Name / callback">
+          </div>
+          <div>
+            <label for="patient">Patient</label>
+            <input id="patient" placeholder="Name / DOB">
+          </div>
+          <div>
+            <label for="acuity">Acuity</label>
+            <select id="acuity">
+              <option>Urgent</option>
+              <option>Non-urgent</option>
+              <option>Emergent</option>
+            </select>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-section pathway-toolbar">
+          <div>
+            <label for="pathwaySelect">Open Pathway</label>
+            <select id="pathwaySelect"></select>
+          </div>
+          <button class="primary" id="openPathwayButton" type="button">Open Protocol</button>
+        </div>
+      </article>
+
+      <section class="active-protocols" id="activeProtocols">
+        <article class="panel empty">Select a protocol set, choose a pathway, then open it into the active call.</article>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      activeCards: new Map(),
+      activeSet: null,
+      library: [],
+      protocol: null
+    };
+
+    const statusNode = document.getElementById("status");
+    const libraryList = document.getElementById("libraryList");
+    const pathwaySelect = document.getElementById("pathwaySelect");
+    const activeProtocols = document.getElementById("activeProtocols");
+    const toast = document.getElementById("toast");
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      window.setTimeout(() => toast.classList.remove("show"), 3500);
+    }
+
+    function setStatus(message) {
+      statusNode.textContent = message;
+    }
+
+    function formatTime(ms) {
+      const total = Math.floor(ms / 1000);
+      const hours = Math.floor(total / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
+      const seconds = total % 60;
+      const base = [minutes, seconds].map(value => String(value).padStart(2, "0")).join(":");
+      return hours > 0 ? `${hours}:${base}` : base;
+    }
+
+    async function api(path, options) {
+      const response = await fetch(path, options);
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "Request failed.");
+      }
+      return payload;
+    }
+
+    async function loadLibrary() {
+      const payload = await api("/api/pathways");
+      state.library = payload.pathways;
+      renderLibrary();
+      if (!state.activeSet && state.library.length) {
+        await selectProtocolSet(state.library[0].id);
+      }
+      setStatus(`${state.library.length} protocol set${state.library.length === 1 ? "" : "s"} loaded`);
+    }
+
+    function renderLibrary() {
+      libraryList.innerHTML = "";
+      if (!state.library.length) {
+        libraryList.innerHTML = '<div class="empty">No pathways uploaded yet.</div>';
+        return;
+      }
+      state.library.forEach(item => {
+        const button = document.createElement("button");
+        button.className = `library-item ${state.activeSet === item.id ? "active" : ""}`;
+        button.type = "button";
+        button.innerHTML = `<strong>${item.title}</strong><div class="subtle">${item.pathway_count} pathway${item.pathway_count === 1 ? "" : "s"}</div>`;
+        button.addEventListener("click", () => selectProtocolSet(item.id));
+        libraryList.appendChild(button);
+      });
+    }
+
+    async function selectProtocolSet(id) {
+      state.protocol = await api(`/api/pathways/${encodeURIComponent(id)}`);
+      state.activeSet = id;
+      renderLibrary();
+      renderPathwayOptions();
+      setStatus(`${state.protocol.title} selected`);
+    }
+
+    function renderPathwayOptions() {
+      const entries = Object.entries(state.protocol.pathways);
+      pathwaySelect.innerHTML = entries
+        .map(([id, pathway]) => `<option value="${id}">${pathway.title || id}</option>`)
+        .join("");
+    }
+
+    function startTimer(card, startedAt) {
+      const timer = card.querySelector(".timer");
+      const tick = () => {
+        timer.textContent = formatTime(Date.now() - startedAt);
+      };
+      tick();
+      return window.setInterval(tick, 1000);
+    }
+
+    function renderSteps(pathway) {
+      if (!pathway.steps || !pathway.steps.length) return "";
+      return `<div class="step-list">${pathway.steps.map((step, index) => `
+        <label class="step">
+          <input type="checkbox" data-step-index="${index}">
+          <span class="step-text">${index + 1}. ${step}</span>
+        </label>
+      `).join("")}</div>`;
+    }
+
+    function renderPageFormat(pathway) {
+      if (!pathway.page_format) return "";
+      return `<pre class="page-format">${pathway.page_format.join("\n")}</pre>`;
+    }
+
+    function renderDecisionPoints(pathway) {
+      if (!pathway.decision_points) return "";
+      return `<div class="decision-grid">${pathway.decision_points.map(point => `
+        <section class="info-box">
+          <h3>${point.question}</h3>
+          <strong>Yes</strong>
+          <ul>${point.yes.map(item => `<li>${item}</li>`).join("")}</ul>
+          <strong>No</strong>
+          <ul>${point.no.map(item => `<li>${item}</li>`).join("")}</ul>
+        </section>
+      `).join("")}</div>`;
+    }
+
+    function renderDestinationGuidance(pathway) {
+      if (!pathway.destination_guidance) return "";
+      return `<div class="decision-grid">${Object.entries(pathway.destination_guidance).map(([key, value]) => `
+        <section class="info-box">
+          <h3>${key.replaceAll("_", " ")}</h3>
+          ${value.call ? `<p><strong>Call:</strong> ${value.call}</p>` : ""}
+          ${value.call_7am_9pm ? `<p><strong>7am-9pm:</strong> ${value.call_7am_9pm}</p>` : ""}
+          ${value.pager_9pm_7am ? `<p><strong>9pm-7am pager:</strong> ${value.pager_9pm_7am}</p>` : ""}
+          ${value.criteria ? `<ul>${value.criteria.map(item => `<li>${item}</li>`).join("")}</ul>` : ""}
+          ${value.examples ? `<ul>${value.examples.map(item => `<li>${item}</li>`).join("")}</ul>` : ""}
+          ${value.notes ? `<p>${value.notes.join(" ")}</p>` : ""}
+        </section>
+      `).join("")}</div>`;
+    }
+
+    function openPathway() {
+      if (!state.protocol) return;
+      const pathwayId = pathwaySelect.value;
+      const pathway = state.protocol.pathways[pathwayId];
+      const instanceId = `${state.activeSet}:${pathwayId}:${Date.now()}`;
+      if (activeProtocols.querySelector(".empty")) {
+        activeProtocols.innerHTML = "";
+      }
+
+      const card = document.createElement("article");
+      card.className = "protocol-card";
+      card.dataset.instanceId = instanceId;
+      card.innerHTML = `
+        <div class="protocol-header">
+          <div>
+            <h2>${pathway.title}</h2>
+            <div class="subtle">${pathway.trigger || state.protocol.title}</div>
+          </div>
+          <div class="stack">
+            <span class="timer">00:00</span>
+            <button class="danger close-protocol" type="button">Close</button>
+          </div>
+        </div>
+        ${renderSteps(pathway)}
+        ${renderDecisionPoints(pathway)}
+        ${renderDestinationGuidance(pathway)}
+        ${renderPageFormat(pathway)}
+      `;
+
+      activeProtocols.prepend(card);
+      const interval = startTimer(card, Date.now());
+      state.activeCards.set(instanceId, interval);
+
+      card.querySelectorAll(".step input").forEach(input => {
+        input.addEventListener("change", event => {
+          event.target.closest(".step").classList.toggle("done", event.target.checked);
+        });
+      });
+
+      card.querySelector(".close-protocol").addEventListener("click", () => {
+        window.clearInterval(state.activeCards.get(instanceId));
+        state.activeCards.delete(instanceId);
+        card.remove();
+        if (!activeProtocols.children.length) {
+          activeProtocols.innerHTML = '<article class="panel empty">No active protocols.</article>';
+        }
+      });
+    }
+
+    async function uploadPathway() {
+      const file = document.getElementById("uploadInput").files[0];
+      if (!file) {
+        showToast("Choose a JSON pathway file first.");
+        return;
+      }
+      try {
+        const payload = JSON.parse(await file.text());
+        const result = await api("/api/pathways", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        showToast(`${result.pathway.title} uploaded.`);
+        await loadLibrary();
+        await selectProtocolSet(result.pathway.id);
+      } catch (error) {
+        showToast(error.message);
+      }
+    }
+
+    document.getElementById("uploadButton").addEventListener("click", uploadPathway);
+    document.getElementById("openPathwayButton").addEventListener("click", openPathway);
+
+    loadLibrary().catch(error => {
+      setStatus("Backend error");
+      showToast(error.message);
+    });
+  </script>
+</body>
+</html>
+

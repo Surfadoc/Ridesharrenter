@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import re
+import threading
 from datetime import datetime, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -15,8 +16,14 @@ STATIC_DIR = ROOT / "static"
 DATA_DIR = ROOT / "data"
 PATHWAY_DIR = DATA_DIR / "pathways"
 CASE_DIR = DATA_DIR / "cases"
+AUTOFILL_DIR = DATA_DIR / "autofill"
 
-MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB guard for JSON uploads.
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+
+# In-memory staging area for autofill — holds the most-recently-staged case
+# snapshot so a bookmarklet on another origin can fetch it.
+_autofill_lock = threading.Lock()
+_autofill_staged: dict | None = None
 
 
 def now_iso() -> str:
@@ -40,7 +47,6 @@ def load_pathway(pathway_id: str) -> dict:
 
 
 def validate_pathway(payload: dict) -> dict:
-    """Validate the shape of an uploaded protocol set and normalise its id."""
     if not isinstance(payload, dict):
         raise ValueError("Pathway must be a JSON object.")
     if not payload.get("title"):
@@ -63,8 +69,6 @@ def validate_pathway(payload: dict) -> dict:
     if not isinstance(entry, dict):
         raise ValueError("Pathway must include an entry object.")
 
-    # Validate that triage options point at real pathways so the UI never
-    # routes a caller into a dead end.
     for option in entry.get("options", []):
         target = option.get("next")
         if target and target not in pathways:
@@ -99,7 +103,7 @@ def list_pathways() -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Cases (audit trail / supervisor review)
+# Cases
 # ---------------------------------------------------------------------------
 
 def save_case(payload: dict) -> dict:
@@ -151,11 +155,79 @@ def load_case(case_id: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Autofill — field maps + staging
+# ---------------------------------------------------------------------------
+
+def load_field_maps() -> list[dict]:
+    AUTOFILL_DIR.mkdir(parents=True, exist_ok=True)
+    maps = []
+    for path in sorted(AUTOFILL_DIR.glob("*.json")):
+        try:
+            maps.append(json.loads(path.read_text(encoding="utf-8")))
+        except json.JSONDecodeError:
+            continue
+    return maps
+
+
+def save_field_map(payload: dict) -> dict:
+    if not isinstance(payload, dict):
+        raise ValueError("Field map must be a JSON object.")
+    if not payload.get("name"):
+        raise ValueError("Field map must include a name.")
+    if not isinstance(payload.get("mappings"), dict) or not payload["mappings"]:
+        raise ValueError("Field map must include a non-empty mappings object.")
+
+    map_id = safe_id(payload.get("id") or payload["name"])
+    payload["id"] = map_id
+    payload["updated_at"] = now_iso()
+
+    AUTOFILL_DIR.mkdir(parents=True, exist_ok=True)
+    path = AUTOFILL_DIR / f"{map_id}.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return payload
+
+
+def delete_field_map(map_id: str) -> bool:
+    path = AUTOFILL_DIR / f"{safe_id(map_id)}.json"
+    if not path.exists():
+        return False
+    path.unlink()
+    return True
+
+
+def stage_autofill(case_data: dict) -> None:
+    global _autofill_staged
+    with _autofill_lock:
+        _autofill_staged = {
+            "case_data": case_data,
+            "staged_at": now_iso(),
+            "maps": load_field_maps(),
+        }
+
+
+def get_staged_autofill() -> dict | None:
+    with _autofill_lock:
+        return _autofill_staged
+
+
+# ---------------------------------------------------------------------------
 # HTTP handler
 # ---------------------------------------------------------------------------
 
 class ProtocolHandler(BaseHTTPRequestHandler):
-    server_version = "ProtocolEngine/0.2"
+    server_version = "ProtocolEngine/0.3"
+
+    def _cors_headers(self) -> None:
+        """Allow cross-origin requests so the bookmarklet can reach us."""
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+
+    def do_OPTIONS(self) -> None:
+        self.send_response(HTTPStatus.NO_CONTENT)
+        self._cors_headers()
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def do_GET(self) -> None:
         path = unquote(urlparse(self.path).path)
@@ -188,6 +260,18 @@ class ProtocolHandler(BaseHTTPRequestHandler):
                 self.send_error_json(HTTPStatus.NOT_FOUND, "Case not found.")
             return
 
+        if path == "/api/autofill":
+            staged = get_staged_autofill()
+            if staged:
+                self.send_json(staged)
+            else:
+                self.send_error_json(HTTPStatus.NOT_FOUND, "No case staged for autofill. Click 'Stage for Autofill' in the Protocol Engine first.")
+            return
+
+        if path == "/api/autofill/maps":
+            self.send_json({"maps": load_field_maps()})
+            return
+
         if path in {"/", "/index.html"}:
             self.send_static(STATIC_DIR / "index.html")
             return
@@ -210,20 +294,38 @@ class ProtocolHandler(BaseHTTPRequestHandler):
             self.handle_json_write(self._save_case)
             return
 
+        if path == "/api/autofill":
+            self.handle_json_write(self._stage_autofill)
+            return
+
+        if path == "/api/autofill/maps":
+            self.handle_json_write(self._save_field_map)
+            return
+
         self.send_error_json(HTTPStatus.NOT_FOUND, "Endpoint not found.")
 
     def do_DELETE(self) -> None:
         path = urlparse(self.path).path
-        if not path.startswith("/api/pathways/"):
-            self.send_error_json(HTTPStatus.NOT_FOUND, "Endpoint not found.")
+
+        if path.startswith("/api/pathways/"):
+            pathway_id = path.rsplit("/", 1)[-1]
+            target = PATHWAY_DIR / f"{safe_id(pathway_id)}.json"
+            if not target.exists():
+                self.send_error_json(HTTPStatus.NOT_FOUND, "Pathway not found.")
+                return
+            target.unlink()
+            self.send_json({"ok": True})
             return
-        pathway_id = path.rsplit("/", 1)[-1]
-        target = PATHWAY_DIR / f"{safe_id(pathway_id)}.json"
-        if not target.exists():
-            self.send_error_json(HTTPStatus.NOT_FOUND, "Pathway not found.")
+
+        if path.startswith("/api/autofill/maps/"):
+            map_id = path.rsplit("/", 1)[-1]
+            if delete_field_map(map_id):
+                self.send_json({"ok": True})
+            else:
+                self.send_error_json(HTTPStatus.NOT_FOUND, "Field map not found.")
             return
-        target.unlink()
-        self.send_json({"ok": True})
+
+        self.send_error_json(HTTPStatus.NOT_FOUND, "Endpoint not found.")
 
     # -- write helpers ------------------------------------------------------
 
@@ -262,6 +364,14 @@ class ProtocolHandler(BaseHTTPRequestHandler):
         case = save_case(payload)
         self.send_json({"ok": True, "case_id": case["case_id"], "updated_at": case["updated_at"]}, HTTPStatus.CREATED)
 
+    def _stage_autofill(self, payload: dict) -> None:
+        stage_autofill(payload)
+        self.send_json({"ok": True, "staged_at": now_iso()})
+
+    def _save_field_map(self, payload: dict) -> None:
+        fm = save_field_map(payload)
+        self.send_json({"ok": True, "id": fm["id"], "name": fm["name"]}, HTTPStatus.CREATED)
+
     # -- response helpers ---------------------------------------------------
 
     def send_static(self, path: Path) -> None:
@@ -280,6 +390,7 @@ class ProtocolHandler(BaseHTTPRequestHandler):
     def send_json(self, payload: dict, status: HTTPStatus = HTTPStatus.OK) -> None:
         body = json.dumps(payload).encode("utf-8")
         self.send_response(status)
+        self._cors_headers()
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
@@ -296,6 +407,7 @@ class ProtocolHandler(BaseHTTPRequestHandler):
 def main() -> None:
     PATHWAY_DIR.mkdir(parents=True, exist_ok=True)
     CASE_DIR.mkdir(parents=True, exist_ok=True)
+    AUTOFILL_DIR.mkdir(parents=True, exist_ok=True)
     host = "127.0.0.1"
     port = 8787
     httpd = ThreadingHTTPServer((host, port), ProtocolHandler)

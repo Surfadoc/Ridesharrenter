@@ -68,41 +68,134 @@
           </div>
         </div>
         <div class="panel-section case-bar" id="caseBar">
-          <div>
+          <div class="field-with-copy">
             <label for="caseId">Case ID</label>
             <input id="caseId" data-field="case_id" placeholder="Auto / CATC / transfer ID">
+            <button class="copy-field" type="button" data-copy="case_id" title="Copy">&#x2398;</button>
           </div>
-          <div>
+          <div class="field-with-copy">
             <label for="caller">Calling Provider</label>
             <input id="caller" data-field="caller" placeholder="Name">
+            <button class="copy-field" type="button" data-copy="caller" title="Copy">&#x2398;</button>
           </div>
-          <div>
+          <div class="field-with-copy">
             <label for="callback">Callback #</label>
             <input id="callback" data-field="callback" placeholder="Phone">
+            <button class="copy-field" type="button" data-copy="callback" title="Copy">&#x2398;</button>
           </div>
-          <div>
+          <div class="field-with-copy">
             <label for="acuity">Acuity</label>
             <select id="acuity" data-field="acuity">
               <option>Emergent</option>
               <option selected>Urgent</option>
               <option>Non-urgent</option>
             </select>
+            <button class="copy-field" type="button" data-copy="acuity" title="Copy">&#x2398;</button>
           </div>
-          <div>
+          <div class="field-with-copy">
             <label for="patient">Patient</label>
             <input id="patient" data-field="patient" placeholder="Name">
+            <button class="copy-field" type="button" data-copy="patient" title="Copy">&#x2398;</button>
           </div>
-          <div>
+          <div class="field-with-copy">
             <label for="dob">DOB</label>
             <input id="dob" data-field="dob" placeholder="MM/DD/YYYY">
+            <button class="copy-field" type="button" data-copy="dob" title="Copy">&#x2398;</button>
           </div>
-          <div>
+          <div class="field-with-copy">
             <label for="facility">Sending Facility</label>
             <input id="facility" data-field="facility" placeholder="Hospital / unit">
+            <button class="copy-field" type="button" data-copy="facility" title="Copy">&#x2398;</button>
           </div>
-          <div>
+          <div class="field-with-copy">
             <label for="location">Location / Bed</label>
             <input id="location" data-field="location" placeholder="Unit / room">
+            <button class="copy-field" type="button" data-copy="location" title="Copy">&#x2398;</button>
+          </div>
+        </div>
+        <div class="panel-section button-row">
+          <button id="copyAllButton" type="button">Copy All Fields</button>
+          <button class="primary" id="stageAutofillButton" type="button">Stage for Autofill</button>
+          <span class="autofill-status not-staged" id="autofillStatus">Not staged</span>
+        </div>
+      </article>
+
+      <article class="panel" id="autofillPanel">
+        <div class="panel-section">
+          <div class="collapsible-head" id="autofillToggle">
+            <span class="chevron">&#x25B6;</span>
+            <h3>Autofill &amp; RPA</h3>
+            <span class="subtle" style="margin:0">Push case data into browser forms or desktop apps</span>
+          </div>
+          <div class="collapsible-body" id="autofillBody">
+            <div style="margin-top:12px">
+              <h3>Bookmarklet</h3>
+              <div class="subtle">Drag this link to your bookmarks bar. On the target form, click it to autofill from the staged case.</div>
+              <div id="bookmarkletContainer" style="margin:10px 0"></div>
+              <div class="subtle">The bookmarklet fetches <code>http://127.0.0.1:8787/api/autofill</code> and applies your field mappings.</div>
+            </div>
+            <div style="margin-top:16px">
+              <h3>Field Mappings</h3>
+              <div class="subtle">Map case fields to CSS selectors on the target form. Each mapping tells the bookmarklet which form field to fill.</div>
+              <div class="field-map-list" id="fieldMapList"></div>
+              <button id="addMapButton" type="button" style="margin-top:10px">+ New Field Map</button>
+              <div id="mapEditor" hidden>
+                <div class="map-editor" style="margin-top:12px">
+                  <div>
+                    <label for="mapName">Map Name</label>
+                    <input id="mapName" placeholder="e.g. CATC Registration">
+                  </div>
+                  <div>
+                    <label for="mapUrl">URL Pattern (optional)</label>
+                    <input id="mapUrl" placeholder="e.g. *catc* or https://catc.medstar.net/*">
+                  </div>
+                  <div id="mappingPairs"></div>
+                  <button class="ghost" id="addPairButton" type="button">+ Add Field Pair</button>
+                  <div class="button-row" style="margin-top:8px">
+                    <button class="primary" id="saveMapButton" type="button">Save Map</button>
+                    <button id="cancelMapButton" type="button">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:16px">
+              <div class="collapsible-head" id="rpaToggle">
+                <span class="chevron">&#x25B6;</span>
+                <h3>Desktop RPA Guide</h3>
+              </div>
+              <div class="collapsible-body rpa-guide" id="rpaBody">
+                <p>If the target system is a <strong>desktop application</strong> (not a web page), you can use the exported case JSON with a desktop automation tool. Two free options:</p>
+                <h4>Power Automate Desktop (Windows, free)</h4>
+                <ol>
+                  <li>Click <strong>Export</strong> to save the case as a JSON file.</li>
+                  <li>In Power Automate Desktop, create a flow that reads the JSON file.</li>
+                  <li>Use <em>Read text from file</em> + <em>Convert JSON to custom object</em> to parse the fields.</li>
+                  <li>Use <em>Populate text field in window</em> to type each value into the target app's fields.</li>
+                </ol>
+<pre>
+# Power Automate Desktop pseudo-flow:
+File.ReadText File: %ExportPath% → %JsonText%
+Variables.ConvertJsonToCustomObject Json: %JsonText% → %Case%
+UIAutomation.PopulateTextField TextField: 'Patient Name' Text: %Case.patient%
+UIAutomation.PopulateTextField TextField: 'DOB' Text: %Case.dob%
+UIAutomation.PopulateTextField TextField: 'Callback' Text: %Case.callback%
+</pre>
+                <h4>AutoHotkey v2 (Windows, free)</h4>
+                <p>Export the case JSON, then run an AHK script that reads it and types into the active window:</p>
+<pre>
+#Requires AutoHotkey v2.0
+caseFile := FileRead("case-export.json")
+caseData := Jxon_Load(&amp;caseFile)
+
+; Focus the target app, then Tab to each field and type
+WinActivate "CATC"
+Send caseData["patient"] "{Tab}"
+Send caseData["dob"] "{Tab}"
+Send caseData["callback"] "{Tab}"
+</pre>
+                <p>Both approaches read the <strong>same exported JSON</strong> that the Export button produces — no API key or network access needed.</p>
+              </div>
+            </div>
           </div>
         </div>
       </article>

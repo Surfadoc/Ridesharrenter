@@ -13,3 +13,7 @@ Thumbs.db
 # Saved cases may contain PHI — keep the directory, ignore its contents
 protocol_engine/data/cases/*
 !protocol_engine/data/cases/.gitkeep
+
+# Autofill field maps (site-specific config, not committed)
+protocol_engine/data/autofill/*
+!protocol_engine/data/autofill/.gitkeep

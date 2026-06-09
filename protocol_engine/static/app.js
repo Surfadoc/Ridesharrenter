@@ -581,6 +581,291 @@ function resetCase() {
   showToast("New case started.", "ok");
 }
 
+/* -- clipboard copy (per-field + copy-all) -------------------------- */
+
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function wireCopyButtons() {
+  document.querySelectorAll(".copy-field").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const field = button.dataset.copy;
+      const value = state.caseFields[field] || "";
+      if (!value) {
+        showToast("Field is empty.", "error");
+        return;
+      }
+      if (await copyToClipboard(value)) {
+        button.classList.add("copied");
+        button.textContent = "✓";
+        window.setTimeout(() => {
+          button.classList.remove("copied");
+          button.textContent = "⎘";
+        }, 1500);
+      } else {
+        showToast("Copy not available in this browser.", "error");
+      }
+    });
+  });
+
+  el("copyAllButton").addEventListener("click", async () => {
+    const lines = [
+      `Case ID:    ${state.caseFields.case_id || "—"}`,
+      `Patient:    ${state.caseFields.patient || "—"}`,
+      `DOB:        ${state.caseFields.dob || "—"}`,
+      `Acuity:     ${state.caseFields.acuity || "—"}`,
+      `Caller:     ${state.caseFields.caller || "—"}`,
+      `Callback:   ${state.caseFields.callback || "—"}`,
+      `Facility:   ${state.caseFields.facility || "—"}`,
+      `Location:   ${state.caseFields.location || "—"}`,
+    ];
+    if (await copyToClipboard(lines.join("\n"))) {
+      showToast("All fields copied to clipboard.", "ok");
+    } else {
+      showToast("Copy not available in this browser.", "error");
+    }
+  });
+}
+
+/* -- autofill staging ----------------------------------------------- */
+
+async function stageAutofill() {
+  const snapshot = buildSnapshot();
+  try {
+    await api("/api/autofill", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(snapshot),
+    });
+    const badge = el("autofillStatus");
+    badge.textContent = "Staged";
+    badge.className = "autofill-status staged";
+    showToast("Case staged for autofill. Click the bookmarklet on the target form.", "ok");
+    logEvent("Case staged for autofill");
+  } catch (error) {
+    showToast(`Stage failed: ${error.message}`, "error");
+  }
+}
+
+/* -- bookmarklet generation ----------------------------------------- */
+
+function generateBookmarklet() {
+  const code = `(function(){
+    fetch('http://127.0.0.1:8787/api/autofill')
+      .then(function(r){return r.json()})
+      .then(function(d){
+        if(!d.case_data){alert('No case staged. Click Stage for Autofill in the Protocol Engine first.');return;}
+        var c=d.case_data,maps=d.maps||[],filled=0,host=location.hostname,bestMap=null;
+        for(var i=0;i<maps.length;i++){
+          var pat=maps[i].url_pattern||'';
+          if(pat&&new RegExp(pat.replace(/\\*/g,'.*'),'i').test(location.href)){bestMap=maps[i];break;}
+        }
+        if(!bestMap&&maps.length)bestMap=maps[0];
+        if(!bestMap){alert('Case data ready but no field mappings configured. Go to Autofill & RPA in the Protocol Engine to add a field map.');return;}
+        var m=bestMap.mappings||{};
+        Object.keys(m).forEach(function(field){
+          var sel=m[field];if(!sel)return;
+          var el=document.querySelector(sel);
+          if(el&&c[field]!=null){
+            el.value=c[field];
+            el.dispatchEvent(new Event('input',{bubbles:true}));
+            el.dispatchEvent(new Event('change',{bubbles:true}));
+            filled++;
+          }
+        });
+        alert('Protocol Engine: Filled '+filled+' of '+Object.keys(m).length+' fields.');
+      })
+      .catch(function(e){alert('Autofill error: '+e.message+'\\n\\nMake sure the Protocol Engine server is running at http://127.0.0.1:8787');});
+  })();`;
+
+  const minified = code.replace(/\s+/g, " ").trim();
+  const href = `javascript:${encodeURIComponent(minified)}`;
+
+  const container = el("bookmarkletContainer");
+  const link = document.createElement("a");
+  link.className = "bookmarklet-link";
+  link.href = href;
+  link.textContent = "Autofill from Protocol Engine";
+  link.title = "Drag this to your bookmarks bar";
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    showToast("Drag this link to your bookmarks bar — don't click it here.", "ok");
+  });
+  container.appendChild(link);
+}
+
+/* -- field map management ------------------------------------------- */
+
+let editingMapId = null;
+
+async function loadFieldMaps() {
+  try {
+    const data = await api("/api/autofill/maps");
+    renderFieldMaps(data.maps || []);
+  } catch {
+    renderFieldMaps([]);
+  }
+}
+
+function renderFieldMaps(maps) {
+  const list = el("fieldMapList");
+  if (!maps.length) {
+    list.innerHTML = '<div class="empty" style="padding:8px 0">No field maps yet. Add one to enable the bookmarklet.</div>';
+    return;
+  }
+  list.innerHTML = maps
+    .map((map) => {
+      const count = Object.keys(map.mappings || {}).length;
+      const preview = Object.entries(map.mappings || {})
+        .slice(0, 3)
+        .map(([field, selector]) => `${esc(field)} → ${esc(selector)}`)
+        .join(", ");
+      return `
+        <div class="field-map-item">
+          <div class="row">
+            <strong>${esc(map.name)}</strong>
+            <div class="button-row">
+              <button class="ghost edit-map" type="button" data-id="${esc(map.id)}">Edit</button>
+              <button class="ghost danger delete-map" type="button" data-id="${esc(map.id)}">Delete</button>
+            </div>
+          </div>
+          ${map.url_pattern ? `<div class="mapping-preview">URL: ${esc(map.url_pattern)}</div>` : ""}
+          <div class="mapping-preview">${count} mapping${count !== 1 ? "s" : ""}: ${esc(preview)}${count > 3 ? "…" : ""}</div>
+        </div>`;
+    })
+    .join("");
+
+  list.querySelectorAll(".edit-map").forEach((button) => {
+    button.addEventListener("click", () => editFieldMap(maps.find((m) => m.id === button.dataset.id)));
+  });
+  list.querySelectorAll(".delete-map").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!window.confirm("Delete this field map?")) return;
+      try {
+        await api(`/api/autofill/maps/${encodeURIComponent(button.dataset.id)}`, { method: "DELETE" });
+        showToast("Field map deleted.", "ok");
+        loadFieldMaps();
+      } catch (error) {
+        showToast(error.message, "error");
+      }
+    });
+  });
+}
+
+function showMapEditor(map) {
+  editingMapId = map ? map.id : null;
+  el("mapName").value = map ? map.name : "";
+  el("mapUrl").value = map ? (map.url_pattern || "") : "";
+  const pairs = el("mappingPairs");
+  pairs.innerHTML = "";
+
+  const caseFields = ["case_id", "caller", "callback", "patient", "dob", "facility", "location", "acuity"];
+  const mappings = map ? (map.mappings || {}) : {};
+
+  if (map) {
+    Object.entries(mappings).forEach(([field, selector]) => addMappingPair(field, selector));
+  } else {
+    addMappingPair("patient", "");
+  }
+
+  el("mapEditor").hidden = false;
+}
+
+function addMappingPair(field, selector) {
+  const pairs = el("mappingPairs");
+  const caseFields = ["case_id", "caller", "callback", "patient", "dob", "facility", "location", "acuity"];
+  const row = document.createElement("div");
+  row.className = "pair";
+  row.innerHTML = `
+    <div>
+      <label>Case Field</label>
+      <select class="map-field">
+        ${caseFields.map((f) => `<option value="${f}" ${f === field ? "selected" : ""}>${f}</option>`).join("")}
+      </select>
+    </div>
+    <div>
+      <label>CSS Selector</label>
+      <input class="map-selector" value="${esc(selector)}" placeholder="#patientName or [name='patient']">
+    </div>
+    <button class="danger ghost remove-pair" type="button">✕</button>`;
+  row.querySelector(".remove-pair").addEventListener("click", () => row.remove());
+  pairs.appendChild(row);
+}
+
+function editFieldMap(map) {
+  showMapEditor(map);
+}
+
+async function saveFieldMap() {
+  const name = el("mapName").value.trim();
+  const urlPattern = el("mapUrl").value.trim();
+  if (!name) {
+    showToast("Map name is required.", "error");
+    return;
+  }
+
+  const mappings = {};
+  el("mappingPairs").querySelectorAll(".pair").forEach((row) => {
+    const field = row.querySelector(".map-field").value;
+    const selector = row.querySelector(".map-selector").value.trim();
+    if (field && selector) mappings[field] = selector;
+  });
+
+  if (!Object.keys(mappings).length) {
+    showToast("Add at least one field mapping.", "error");
+    return;
+  }
+
+  const payload = { name, url_pattern: urlPattern, mappings };
+  if (editingMapId) payload.id = editingMapId;
+
+  try {
+    await api("/api/autofill/maps", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    showToast(`Field map "${name}" saved.`, "ok");
+    el("mapEditor").hidden = true;
+    editingMapId = null;
+    loadFieldMaps();
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+function wireAutofill() {
+  el("stageAutofillButton").addEventListener("click", stageAutofill);
+  generateBookmarklet();
+  loadFieldMaps();
+
+  el("addMapButton").addEventListener("click", () => showMapEditor(null));
+  el("addPairButton").addEventListener("click", () => addMappingPair("", ""));
+  el("saveMapButton").addEventListener("click", saveFieldMap);
+  el("cancelMapButton").addEventListener("click", () => {
+    el("mapEditor").hidden = true;
+    editingMapId = null;
+  });
+
+  wireCollapsible("autofillToggle", "autofillBody");
+  wireCollapsible("rpaToggle", "rpaBody");
+}
+
+function wireCollapsible(headId, bodyId) {
+  const head = el(headId);
+  const body = el(bodyId);
+  head.addEventListener("click", () => {
+    head.classList.toggle("open");
+    body.classList.toggle("open");
+  });
+}
+
 /* -- uploads -------------------------------------------------------- */
 
 async function uploadPathway() {
@@ -621,6 +906,8 @@ function boot() {
   el("resetButton").addEventListener("click", resetCase);
 
   wireCaseFields();
+  wireCopyButtons();
+  wireAutofill();
   renderTimeline();
 
   api("/api/health")

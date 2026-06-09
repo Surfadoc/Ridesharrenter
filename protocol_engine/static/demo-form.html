@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo Target Form — Test Autofill</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      background: #f0f2f4;
+      color: #1a1a2e;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      margin: 0;
+      padding: 40px 20px;
+    }
+    .container { max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 22px; margin-bottom: 6px; }
+    .hint { color: #666; font-size: 13px; margin-bottom: 24px; }
+    .hint code { background: #e4e7eb; border-radius: 3px; padding: 1px 5px; }
+    .card {
+      background: #fff;
+      border: 1px solid #d9dde3;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      padding: 24px;
+    }
+    .grid { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+    label { color: #555; display: block; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; margin-bottom: 5px; text-transform: uppercase; }
+    input, select {
+      border: 1px solid #d0d4da;
+      border-radius: 6px;
+      color: #1a1a2e;
+      font: inherit;
+      padding: 10px 12px;
+      width: 100%;
+    }
+    input:focus, select:focus { outline: 2px solid #176b87; outline-offset: 1px; }
+    .full { grid-column: 1 / -1; }
+    .banner {
+      background: #e8f4f8;
+      border: 1px solid #b3dce8;
+      border-radius: 8px;
+      color: #0f4d61;
+      font-size: 13px;
+      margin-bottom: 20px;
+      padding: 12px 14px;
+    }
+    .result {
+      background: #f9fafb;
+      border: 1px solid #d9dde3;
+      border-radius: 8px;
+      margin-top: 20px;
+      padding: 14px;
+    }
+    .result h3 { font-size: 14px; margin: 0 0 8px; }
+    .result pre { background: #20262e; border-radius: 6px; color: #e8ecf0; font-size: 12px; margin: 0; padding: 10px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Demo Target Form</h1>
+    <p class="hint">
+      This simulates an external form (e.g. CATC registration). Use it to test the <strong>bookmarklet autofill</strong> workflow.<br>
+      To set up: create a field map in the Protocol Engine with the CSS selectors shown below, stage your case, then click the bookmarklet on this page.
+    </p>
+
+    <div class="banner">
+      <strong>CSS selectors for this form:</strong><br>
+      patient → <code>#patientName</code>&nbsp;&nbsp;
+      dob → <code>#patientDOB</code>&nbsp;&nbsp;
+      caller → <code>#callerName</code>&nbsp;&nbsp;
+      callback → <code>#callbackNumber</code>&nbsp;&nbsp;
+      facility → <code>#sendingFacility</code>&nbsp;&nbsp;
+      acuity → <code>#acuityLevel</code>&nbsp;&nbsp;
+      location → <code>#patientLocation</code>&nbsp;&nbsp;
+      case_id → <code>#caseIdField</code>
+    </div>
+
+    <div class="card">
+      <div class="grid">
+        <div>
+          <label for="caseIdField">Case / Transfer ID</label>
+          <input id="caseIdField" name="case_id" placeholder="—">
+        </div>
+        <div>
+          <label for="acuityLevel">Acuity</label>
+          <input id="acuityLevel" name="acuity" placeholder="—">
+        </div>
+        <div>
+          <label for="patientName">Patient Name</label>
+          <input id="patientName" name="patient" placeholder="—">
+        </div>
+        <div>
+          <label for="patientDOB">DOB</label>
+          <input id="patientDOB" name="dob" placeholder="—">
+        </div>
+        <div>
+          <label for="callerName">Calling Provider</label>
+          <input id="callerName" name="caller" placeholder="—">
+        </div>
+        <div>
+          <label for="callbackNumber">Callback #</label>
+          <input id="callbackNumber" name="callback" placeholder="—">
+        </div>
+        <div>
+          <label for="sendingFacility">Sending Facility</label>
+          <input id="sendingFacility" name="facility" placeholder="—">
+        </div>
+        <div>
+          <label for="patientLocation">Location / Bed</label>
+          <input id="patientLocation" name="location" placeholder="—">
+        </div>
+      </div>
+    </div>
+
+    <div class="result">
+      <h3>Captured Values (live)</h3>
+      <pre id="liveOutput">{}</pre>
+    </div>
+  </div>
+
+  <script>
+    const fields = document.querySelectorAll(".card input");
+    const output = document.getElementById("liveOutput");
+    function update() {
+      const data = {};
+      fields.forEach(f => { if (f.value) data[f.name] = f.value; });
+      output.textContent = JSON.stringify(data, null, 2) || "{}";
+    }
+    fields.forEach(f => {
+      f.addEventListener("input", update);
+      f.addEventListener("change", update);
+    });
+  </script>
+</body>
+</html>

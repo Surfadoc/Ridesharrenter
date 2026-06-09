@@ -510,6 +510,7 @@ function buildSnapshot() {
     dob: state.caseFields.dob || "",
     facility: state.caseFields.facility || "",
     location: state.caseFields.location || "",
+    diagnosis: state.caseFields.diagnosis || "",
     acuity: state.caseFields.acuity || "",
     protocol_set: state.activeSet,
     started_at: startedAt,
@@ -624,6 +625,7 @@ function wireCopyButtons() {
       `Callback:   ${state.caseFields.callback || "—"}`,
       `Facility:   ${state.caseFields.facility || "—"}`,
       `Location:   ${state.caseFields.location || "—"}`,
+      `Diagnosis:  ${state.caseFields.diagnosis || "—"}`,
     ];
     if (await copyToClipboard(lines.join("\n"))) {
       showToast("All fields copied to clipboard.", "ok");
@@ -656,32 +658,41 @@ async function stageAutofill() {
 /* -- bookmarklet generation ----------------------------------------- */
 
 function generateBookmarklet() {
+  // setVal uses the native value setter so React/Terra controlled inputs
+  // (e.g. Cerner Transfer Center) register the change instead of ignoring it.
   const code = `(function(){
+    function setVal(el,v){
+      var proto=el.tagName==='TEXTAREA'?window.HTMLTextAreaElement.prototype:window.HTMLInputElement.prototype;
+      var desc=Object.getOwnPropertyDescriptor(proto,'value');
+      if(desc&&desc.set){desc.set.call(el,v);}else{el.value=v;}
+      el.dispatchEvent(new Event('input',{bubbles:true}));
+      el.dispatchEvent(new Event('change',{bubbles:true}));
+    }
     fetch('http://127.0.0.1:8787/api/autofill')
       .then(function(r){return r.json()})
       .then(function(d){
         if(!d.case_data){alert('No case staged. Click Stage for Autofill in the Protocol Engine first.');return;}
-        var c=d.case_data,maps=d.maps||[],filled=0,host=location.hostname,bestMap=null;
+        var c=d.case_data,maps=d.maps||[],bestMap=null;
         for(var i=0;i<maps.length;i++){
           var pat=maps[i].url_pattern||'';
           if(pat&&new RegExp(pat.replace(/\\*/g,'.*'),'i').test(location.href)){bestMap=maps[i];break;}
         }
         if(!bestMap&&maps.length)bestMap=maps[0];
         if(!bestMap){alert('Case data ready but no field mappings configured. Go to Autofill & RPA in the Protocol Engine to add a field map.');return;}
-        var m=bestMap.mappings||{};
+        var m=bestMap.mappings||{},filled=0,missed=[];
         Object.keys(m).forEach(function(field){
-          var sel=m[field];if(!sel)return;
-          var el=document.querySelector(sel);
-          if(el&&c[field]!=null){
-            el.value=c[field];
-            el.dispatchEvent(new Event('input',{bubbles:true}));
-            el.dispatchEvent(new Event('change',{bubbles:true}));
-            filled++;
-          }
+          var sel=m[field],val=c[field];
+          if(!sel||val==null||val===''){return;}
+          var els=document.querySelectorAll(sel),el=null;
+          for(var j=0;j<els.length;j++){if(els[j].offsetParent!==null){el=els[j];break;}}
+          if(!el&&els.length){el=els[0];}
+          if(el){setVal(el,val);filled++;}else{missed.push(field);}
         });
-        alert('Protocol Engine: Filled '+filled+' of '+Object.keys(m).length+' fields.');
+        var msg='Protocol Engine ('+bestMap.name+'): filled '+filled+' field'+(filled===1?'':'s')+'.';
+        if(missed.length){msg+=' Not found on this page: '+missed.join(', ')+'.';}
+        alert(msg);
       })
-      .catch(function(e){alert('Autofill error: '+e.message+'\\n\\nMake sure the Protocol Engine server is running at http://127.0.0.1:8787');});
+      .catch(function(e){alert('Autofill error: '+e.message+'. Make sure the Protocol Engine server is running at http://127.0.0.1:8787');});
   })();`;
 
   const minified = code.replace(/\s+/g, " ").trim();
@@ -765,7 +776,7 @@ function showMapEditor(map) {
   const pairs = el("mappingPairs");
   pairs.innerHTML = "";
 
-  const caseFields = ["case_id", "caller", "callback", "patient", "dob", "facility", "location", "acuity"];
+  const caseFields = ["case_id", "caller", "callback", "patient", "dob", "facility", "location", "diagnosis", "acuity"];
   const mappings = map ? (map.mappings || {}) : {};
 
   if (map) {
@@ -779,7 +790,7 @@ function showMapEditor(map) {
 
 function addMappingPair(field, selector) {
   const pairs = el("mappingPairs");
-  const caseFields = ["case_id", "caller", "callback", "patient", "dob", "facility", "location", "acuity"];
+  const caseFields = ["case_id", "caller", "callback", "patient", "dob", "facility", "location", "diagnosis", "acuity"];
   const row = document.createElement("div");
   row.className = "pair";
   row.innerHTML = `

@@ -17,3 +17,5 @@ protocol_engine/data/cases/*
 # Autofill field maps (site-specific config, not committed)
 protocol_engine/data/autofill/*
 !protocol_engine/data/autofill/.gitkeep
+# Committed seed map for the Cerner Transfer Center form
+!protocol_engine/data/autofill/cerner_transfer_center.json

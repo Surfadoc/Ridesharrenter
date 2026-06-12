@@ -685,9 +685,17 @@ function generateBookmarklet() {
     }
     function resolve(sel){
       if(sel.indexOf('label:')===0)return byLabel(sel.slice(6));
+      if(sel.indexOf('text:')===0){
+        var tsel=sel.slice(5),tel;try{tel=document.querySelector(tsel);}catch(e){return null;}
+        if(tel){tel._isText=true;}return tel;
+      }
       var els;try{els=document.querySelectorAll(sel);}catch(e){return null;}
       for(var j=0;j<els.length;j++){if(els[j].offsetParent!==null)return els[j];}
       return els.length?els[0]:null;
+    }
+    function readVal(el){
+      if(el._isText){var t=el.textContent.trim();var m=t.match(/:\\s*(.+)/);return m?m[1].trim():t;}
+      return (el.value||'').trim();
     }
     function setVal(el,v){
       var proto=el.tagName==='TEXTAREA'?window.HTMLTextAreaElement.prototype:window.HTMLInputElement.prototype;
@@ -759,7 +767,7 @@ function generateBookmarklet() {
             return;
           }
           var el=resolve(sel);
-          if(el&&el.value&&el.value.trim()){fields[field]=el.value.trim();found++;}
+          if(el){var rv=readVal(el);if(rv){fields[field]=rv;found++;}}
         });
         if(!found){alert('No filled mapped fields found on this page to grab.');return;}
         return fetch('http://127.0.0.1:8787/api/autofill/inbound',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source:location.hostname,fields:fields})})

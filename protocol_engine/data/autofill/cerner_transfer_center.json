@@ -4,6 +4,7 @@
   "url_pattern": "*transfercenter*cerner*",
   "use_note": "Built from a live field survey of the Cerner Transfer Center case form (Terra/React UI). Most fields have no usable id or placeholder, so 'label:' selectors match by visible label text (leading * ignored). 'date:' handles the split month|day|year Terra date picker. Element ids embed random per-case hashes, so the few id selectors match stable prefixes/suffixes. Grab (reading values) works on all of these; pushing values into '- Select -' comboboxes shows the text but may not register a selection in Cerner — treat combobox fills as a visual aid and confirm manually.",
   "mappings": {
+    "case_id": "text:[class*='DemographicsBanner'] span",
     "patient": "label:Patient Name",
     "dob": "date:[name='terra-date-month-date-input']|[name='terra-date-day-date-input']|[name='terra-date-year-date-input']",
     "caller": "[id^='sendingPhysicianName']",

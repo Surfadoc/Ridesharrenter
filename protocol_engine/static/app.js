@@ -730,16 +730,40 @@ function generateBookmarklet() {
 
 function makeBookmarkletLink(label, code, title) {
   const minified = code.replace(/\s+/g, " ").trim();
+  const bookmarkletUrl = `javascript:${encodeURIComponent(minified)}`;
+
+  const wrap = document.createElement("span");
+  wrap.style.cssText = "display:inline-flex;align-items:center;gap:4px";
+
   const link = document.createElement("a");
   link.className = "bookmarklet-link";
-  link.href = `javascript:${encodeURIComponent(minified)}`;
+  link.href = bookmarkletUrl;
   link.textContent = label;
   link.title = `${title}. Drag this to your bookmarks bar.`;
   link.addEventListener("click", (event) => {
     event.preventDefault();
     showToast("Drag this link to your bookmarks bar — don't click it here.", "ok");
   });
-  return link;
+  wrap.appendChild(link);
+
+  // Fallback for browsers that block dragging javascript: links — copy the
+  // URL, then paste it into a favorite's address field (or strip the
+  // leading "javascript:" and paste into DevTools console to test).
+  const copy = document.createElement("button");
+  copy.type = "button";
+  copy.className = "ghost";
+  copy.textContent = "copy code";
+  copy.title = "Copy the bookmarklet URL to paste into a bookmark's address field";
+  copy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(bookmarkletUrl);
+      showToast(`${label} code copied. Paste it as a favorite's URL.`, "ok");
+    } catch {
+      window.prompt("Copy this bookmarklet URL:", bookmarkletUrl);
+    }
+  });
+  wrap.appendChild(copy);
+  return wrap;
 }
 
 /* -- inbound pull (Grab bookmarklet -> case bar) --------------------- */

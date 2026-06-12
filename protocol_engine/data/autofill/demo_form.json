@@ -1,0 +1,15 @@
+{
+  "id": "demo_form",
+  "name": "Demo Target Form",
+  "url_pattern": "*demo-form*",
+  "mappings": {
+    "case_id": "#caseIdField",
+    "patient": "#patientName",
+    "dob": "#patientDOB",
+    "caller": "#callerName",
+    "callback": "#callbackNumber",
+    "facility": "#sendingFacility",
+    "acuity": "#acuityLevel",
+    "location": "#patientLocation"
+  }
+}

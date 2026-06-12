@@ -806,7 +806,7 @@ function renderFieldMaps(maps) {
       const count = Object.keys(map.mappings || {}).length;
       const preview = Object.entries(map.mappings || {})
         .slice(0, 3)
-        .map(([field, selector]) => `${esc(field)} → ${esc(selector)}`)
+        .map(([field, selector]) => `${field} → ${selector}`)
         .join(", ");
       return `
         <div class="field-map-item">

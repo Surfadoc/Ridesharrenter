@@ -38,9 +38,11 @@ Requires `title`, `entry` (prompt + options where each `next` references a real 
 ## Autofill System
 - Per-field copy buttons + "Copy All" for clipboard hand-off.
 - Bookmarklet: stages case data to `/api/autofill`, then a bookmarklet on the target page fetches it and fills form fields using configurable CSS-selector mappings.
-- Field maps stored in `data/autofill/*.json` (git-ignored — site-specific config, except the committed Cerner seed map `cerner_transfer_center.json`).
-- The bookmarklet sets values via the native value setter + input/change events so React/Terra controlled inputs (Cerner) accept them; selectors should use stable id prefixes/suffixes (`[id^=...]`, `[id$=...]`) because Cerner ids embed random per-case hashes.
-- `static/demo-form.html` is a test target form for verifying bookmarklet autofill.
+- Field maps stored in `data/autofill/*.json` (git-ignored — site-specific config, except the committed seed maps `cerner_transfer_center.json` and `demo_form.json`).
+- Mapping selector syntax: plain CSS; `label:Some Label` matches a visible input/textarea/select by associated label text (leading `*` and case ignored — needed because most Cerner/Terra fields have no usable id or placeholder); `date:M|D|Y` handles split Terra date pickers (three |-separated selectors, value joined/split as MM/DD/YYYY).
+- The bookmarklet sets values via the native value setter + input/change events so React/Terra controlled inputs (Cerner) accept them; id selectors should use stable prefixes/suffixes (`[id^=...]`, `[id$=...]`) because Cerner ids embed random per-case hashes. Pushing into Terra `- Select -` comboboxes shows text but may not register a selection — grab direction is reliable, fill of comboboxes is advisory.
+- Server CORS includes `Access-Control-Allow-Private-Network: true` — without it Chrome/Edge silently block HTTPS pages (Cerner) from fetching `127.0.0.1`.
+- `static/demo-form.html` is a simple test target; `static/transfercenter-cerner-mock.html` mirrors the real Cerner form structure (label wrappers, hash ids, split DOB, duplicate `#textbox` decoys) and matches the seed map's URL pattern for regression-testing selectors.
 - RPA guide section covers Power Automate Desktop and AutoHotkey for desktop app targets.
 
 ## Conventions

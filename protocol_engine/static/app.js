@@ -658,16 +658,49 @@ async function stageAutofill() {
 /* -- bookmarklet generation ----------------------------------------- */
 
 function generateBookmarklet() {
-  // setVal uses the native value setter so React/Terra controlled inputs
-  // (e.g. Cerner Transfer Center) register the change instead of ignoring it.
-  const code = `(function(){
+  // Shared by both bookmarklets. Selector syntax beyond plain CSS:
+  //   label:Some Label   — match a visible input/textarea/select by its label
+  //                        text (leading * and case ignored); Cerner/Terra
+  //                        fields mostly have no usable id or placeholder.
+  //   date:M|D|Y         — split date picker; three |-separated selectors for
+  //                        the month/day/year inputs, joined as MM/DD/YYYY.
+  const helpers = `
+    function norm(s){return (s||'').replace(/^\\s*\\*/,'').replace(/\\s+/g,' ').trim().toLowerCase();}
+    function labelOf(el){
+      var lab=el.closest('label');
+      if(!lab&&el.id){try{lab=document.querySelector('label[for="'+(window.CSS&&CSS.escape?CSS.escape(el.id):el.id)+'"]');}catch(e){}}
+      if(lab)return lab.textContent;
+      var wrap=el.closest('[class*="FormField"],[class*="form-field"],[class*="Field"],[class*="field"]');
+      if(wrap){var l2=wrap.querySelector('label,legend,[class*="label"]');if(l2)return l2.textContent;}
+      return '';
+    }
+    function byLabel(txt){
+      var want=norm(txt),els=document.querySelectorAll('input,textarea,select');
+      for(var i=0;i<els.length;i++){
+        var el=els[i];
+        if(el.offsetParent===null||el.type==='checkbox'||el.type==='radio'||el.type==='hidden')continue;
+        if(norm(labelOf(el))===want)return el;
+      }
+      return null;
+    }
+    function resolve(sel){
+      if(sel.indexOf('label:')===0)return byLabel(sel.slice(6));
+      var els;try{els=document.querySelectorAll(sel);}catch(e){return null;}
+      for(var j=0;j<els.length;j++){if(els[j].offsetParent!==null)return els[j];}
+      return els.length?els[0]:null;
+    }
     function setVal(el,v){
       var proto=el.tagName==='TEXTAREA'?window.HTMLTextAreaElement.prototype:window.HTMLInputElement.prototype;
       var desc=Object.getOwnPropertyDescriptor(proto,'value');
       if(desc&&desc.set){desc.set.call(el,v);}else{el.value=v;}
       el.dispatchEvent(new Event('input',{bubbles:true}));
       el.dispatchEvent(new Event('change',{bubbles:true}));
-    }
+    }`;
+
+  // setVal uses the native value setter so React/Terra controlled inputs
+  // (e.g. Cerner Transfer Center) register the change instead of ignoring it.
+  const code = `(function(){
+    ${helpers}
     fetch('http://127.0.0.1:8787/api/autofill')
       .then(function(r){return r.json()})
       .then(function(d){
@@ -683,9 +716,16 @@ function generateBookmarklet() {
         Object.keys(m).forEach(function(field){
           var sel=m[field],val=c[field];
           if(!sel||val==null||val===''){return;}
-          var els=document.querySelectorAll(sel),el=null;
-          for(var j=0;j<els.length;j++){if(els[j].offsetParent!==null){el=els[j];break;}}
-          if(!el&&els.length){el=els[0];}
+          if(sel.indexOf('date:')===0){
+            var parts=sel.slice(5).split('|'),bits=String(val).split(/[\\/.-]/);
+            if(parts.length===3&&bits.length===3){
+              var ok=0;
+              for(var k=0;k<3;k++){var dEl=resolve(parts[k]);if(dEl){setVal(dEl,bits[k]);ok++;}}
+              if(ok){filled++;}else{missed.push(field);}
+            }else{missed.push(field);}
+            return;
+          }
+          var el=resolve(sel);
           if(el){setVal(el,val);filled++;}else{missed.push(field);}
         });
         var msg='Protocol Engine ('+bestMap.name+'): filled '+filled+' field'+(filled===1?'':'s')+'.';
@@ -698,6 +738,7 @@ function generateBookmarklet() {
   // Reverse direction: reads the form on the target page using the same
   // field map selectors and posts the values back to the engine.
   const grabCode = `(function(){
+    ${helpers}
     fetch('http://127.0.0.1:8787/api/autofill/maps')
       .then(function(r){return r.json()})
       .then(function(d){
@@ -711,9 +752,13 @@ function generateBookmarklet() {
         var m=bestMap.mappings||{},fields={},found=0;
         Object.keys(m).forEach(function(field){
           var sel=m[field];if(!sel){return;}
-          var els=document.querySelectorAll(sel),el=null;
-          for(var j=0;j<els.length;j++){if(els[j].offsetParent!==null){el=els[j];break;}}
-          if(!el&&els.length){el=els[0];}
+          if(sel.indexOf('date:')===0){
+            var parts=sel.slice(5).split('|'),bits=[];
+            for(var k=0;k<parts.length;k++){var dEl=resolve(parts[k]);bits.push(dEl&&dEl.value?dEl.value.trim():'');}
+            if(bits.length===3&&bits[0]&&bits[1]&&bits[2]){fields[field]=bits.join('/');found++;}
+            return;
+          }
+          var el=resolve(sel);
           if(el&&el.value&&el.value.trim()){fields[field]=el.value.trim();found++;}
         });
         if(!found){alert('No filled mapped fields found on this page to grab.');return;}

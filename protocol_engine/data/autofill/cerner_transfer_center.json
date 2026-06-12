@@ -2,10 +2,15 @@
   "id": "cerner_transfer_center",
   "name": "Cerner Transfer Center",
   "url_pattern": "*transfercenter*cerner*",
-  "use_note": "Seed map from a field survey of the Cerner Transfer Center case form (Terra/React UI). Element ids contain random per-case hashes (e.g. sendingPhysicianName_WcOTwkpjlDP_0), so these selectors match stable id prefixes/suffixes instead of exact ids. Dropdowns, split date/time pickers, and unlabeled phone fields cannot be reliably targeted by CSS and must be completed manually or via the copy buttons.",
+  "use_note": "Built from a live field survey of the Cerner Transfer Center case form (Terra/React UI). Most fields have no usable id or placeholder, so 'label:' selectors match by visible label text (leading * ignored). 'date:' handles the split month|day|year Terra date picker. Element ids embed random per-case hashes, so the few id selectors match stable prefixes/suffixes. Grab (reading values) works on all of these; pushing values into '- Select -' comboboxes shows the text but may not register a selection in Cerner — treat combobox fills as a visual aid and confirm manually.",
   "mappings": {
-    "patient": "input[placeholder^='Search may include']",
+    "patient": "label:Patient Name",
+    "dob": "date:[name='terra-date-month-date-input']|[name='terra-date-day-date-input']|[name='terra-date-year-date-input']",
     "caller": "[id^='sendingPhysicianName']",
+    "callback": "label:Physician/Contact Phone",
+    "facility": "label:Sending Hospital",
+    "location": "label:Sending Unit Type",
+    "acuity": "label:Transfer Priority",
     "diagnosis": "[id$='-diagnosis']"
   }
 }

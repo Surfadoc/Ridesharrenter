@@ -247,6 +247,9 @@ class ProtocolHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        # Chrome/Edge Private Network Access: HTTPS pages (e.g. Cerner) fetching
+        # a loopback address are blocked unless the preflight answers with this.
+        self.send_header("Access-Control-Allow-Private-Network", "true")
 
     def do_OPTIONS(self) -> None:
         self.send_response(HTTPStatus.NO_CONTENT)

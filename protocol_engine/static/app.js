@@ -724,6 +724,7 @@ function generateBookmarklet() {
         Object.keys(m).forEach(function(field){
           var sel=m[field],val=c[field];
           if(!sel||val==null||val===''){return;}
+          if(sel.indexOf('text:')===0){return;}
           if(sel.indexOf('date:')===0){
             var parts=sel.slice(5).split('|'),bits=String(val).split(/[\\/.-]/);
             if(parts.length===3&&bits.length===3){

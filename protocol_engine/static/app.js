@@ -511,6 +511,8 @@ function buildSnapshot() {
     facility: state.caseFields.facility || "",
     location: state.caseFields.location || "",
     diagnosis: state.caseFields.diagnosis || "",
+    hpi: state.caseFields.hpi || "",
+    notes: state.caseFields.notes || "",
     acuity: state.caseFields.acuity || "",
     protocol_set: state.activeSet,
     started_at: startedAt,
@@ -626,6 +628,8 @@ function wireCopyButtons() {
       `Facility:   ${state.caseFields.facility || "—"}`,
       `Location:   ${state.caseFields.location || "—"}`,
       `Diagnosis:  ${state.caseFields.diagnosis || "—"}`,
+      `HPI:        ${state.caseFields.hpi || "—"}`,
+      `Notes:      ${state.caseFields.notes || "—"}`,
     ];
     if (await copyToClipboard(lines.join("\n"))) {
       showToast("All fields copied to clipboard.", "ok");

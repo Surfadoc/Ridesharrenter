@@ -12,6 +12,8 @@
     "facility": "label:Sending Hospital",
     "location": "label:Sending Unit Type",
     "acuity": "label:Transfer Priority",
-    "diagnosis": "[id$='-diagnosis']"
+    "diagnosis": "[id$='-diagnosis']",
+    "hpi": "label:History of Present Illness",
+    "notes": "label:Note"
   }
 }
